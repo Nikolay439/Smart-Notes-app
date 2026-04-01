@@ -1,0 +1,209 @@
+import json
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication , QWidget , QLabel ,QPushButton , QHBoxLayout  , QVBoxLayout , QTextEdit , QLineEdit , QListWidget 
+from PyQt5.QtWidgets import QInputDialog
+from PyQt5.QtWidgets import QMessageBox
+
+
+
+
+app = QApplication([])
+main_win = QWidget()
+error_win = QMessageBox()
+main_win.setWindowTitle('Умные заметки')
+
+field_text = QTextEdit()
+
+list_notes_title = QLabel("Список заметок")
+list_notes = QListWidget()
+
+btn_make_note = QPushButton('Создать заметку')
+btn_delete_note = QPushButton('Удалить заметку')
+btn_save_note = QPushButton('Сохранить изменение заметку')
+
+list_tags_title = QLabel("Список тегов")
+list_tags = QListWidget()
+
+field_tag = QLineEdit()
+field_tag.setPlaceholderText("Введите тег...")
+btn_add_tag = QPushButton('Добавить к заметке')
+btn_unpin_tag = QPushButton('Открепить от заметке')
+btn_find_notes = QPushButton('Искать заметки по тегу')
+
+layout_main = QHBoxLayout()
+layout_line1V = QVBoxLayout() 
+layout_line2V = QVBoxLayout() 
+layout_line3H = QHBoxLayout()
+layout_line4H = QHBoxLayout()
+
+layout_main.addLayout(layout_line1V)
+layout_main.addLayout(layout_line2V)
+
+layout_line1V.addWidget(field_text)
+layout_line2V.addWidget(list_notes_title)
+layout_line2V.addWidget(list_notes)
+layout_line2V.addLayout(layout_line3H)
+layout_line3H.addWidget(btn_make_note)
+layout_line3H.addWidget(btn_delete_note)
+layout_line2V.addWidget(btn_save_note)
+layout_line2V.addWidget(list_tags_title)
+layout_line2V.addWidget(list_tags)
+layout_line2V.addWidget(field_tag)
+layout_line2V.addLayout(layout_line4H)
+layout_line4H.addWidget(btn_add_tag)
+layout_line4H.addWidget(btn_unpin_tag)
+layout_line2V.addWidget(btn_find_notes)
+
+with open('notes.json', "r" , encoding = "utf-8") as file:
+    notes = json.load(file)
+list_notes.addItems(notes)
+
+def show_note():
+    title = list_notes.selectedItems()[0].text()
+    text = notes[title]["текст"]
+    tags = notes[title]["теги"]
+    field_text.setText(text)
+    list_tags.clear()
+    list_tags.addItems(tags)
+
+def save_note():
+    selected_items = list_notes.selectedItems()
+    if  len(selected_items) != 0:#проблема
+        title = selected_items[0].text()
+        text = field_text.toPlainText()
+        notes[title]["текст"] = text
+        with open('notes.json', "w" , encoding = "utf-8") as file:
+            json.dump(notes, file , ensure_ascii=False , indent = 4)#проблема
+    else:
+        error_win.setText('Заметка не выбронна!!!')
+        error_win.exec_()
+   
+
+
+
+def delet_note():
+    selected_items = list_notes.selectedItems()
+    if  len(selected_items) != 0:#проблема
+        title = selected_items[0].text()
+        del notes[title]
+        field_text.clear()
+        list_tags.clear()
+        list_notes.clear()
+        list_notes.addItems(notes)
+        with open('notes.json', "w" , encoding = "utf-8") as file:
+            json.dump(notes, file , ensure_ascii=False , indent = 4)
+    else:
+        error_win.setText('Заметка не выбронна!!!')
+        error_win.exec_()
+        
+def make_note():
+    note_name, ok = QInputDialog.getText(main_win , "Создать заметку", "Название заметки")
+    note_name = note_name.strip()
+    if note_name != "":
+        if note_name in notes:
+            error_win.setText('Эта заметка уже существует , повторите попытку!')
+            error_win.exec_()
+        else:
+            notes[note_name] = {"текст": "" , "теги": []}
+            list_notes.addItem(note_name)
+            with open('notes.json', "w" , encoding = "utf-8") as file:
+                json.dump(notes, file , ensure_ascii=False , indent = 4)
+    elif note_name == "" and ok == True:
+        error_win.setText('Не введено название заметки!!!')
+        error_win.exec_()
+    
+
+def add_tag():
+    selected_items = list_notes.selectedItems()
+    if  len(selected_items) != 0:
+        tag = field_tag.text()
+        tag = tag.strip()
+        if tag != "":
+            title = selected_items[0].text()
+            if tag in notes[title]["теги"]:
+                error_win.setText('Этот тег уже существует , повторите попытку!')
+                error_win.exec_()
+            else:
+                notes[title]["теги"].append(tag)
+                list_tags.addItem(tag)
+                with open('notes.json', "w" , encoding = "utf-8") as file:
+                    json.dump(notes, file , ensure_ascii=False , indent = 4)
+                field_tag.clear()
+        else:
+            error_win.setText('Не введено название тега!!!')
+            error_win.exec_()
+    else:
+        error_win.setText('Заметка не выбронна!!!')
+        error_win.exec_()
+    
+
+def delet_tag():
+    if len(list_notes.selectedItems()) != 0:
+        title = list_notes.selectedItems()[0].text()
+        if  len(list_tags.selectedItems()) != 0:#проблема
+            tag = list_tags.selectedItems()[0].text()
+            notes[title]["теги"].remove(tag)
+            list_tags.clear()
+            list_tags.addItems(notes[title]["теги"])
+        
+        
+            with open('notes.json', "w" , encoding = "utf-8") as file:
+                json.dump(notes, file , ensure_ascii=False , indent = 4)
+
+        else:
+            error_win.setText('Тег не выброн!!!')
+            error_win.exec_()
+
+    else:
+        error_win.setText('Заметка не выбронна!!!')
+        error_win.exec_()
+
+
+
+def find_notes():
+    if btn_find_notes.text() == "Искать заметки по тегу":
+        tag = field_tag.text()
+        tag = tag.strip()
+        if tag != "":
+            filtred_notes = []
+            for note in notes:
+                if tag in notes[note]["теги"]:
+                    filtred_notes.append(note)
+            if len(filtred_notes) != 0:
+                field_tag.clear()
+                field_text.clear()
+                list_tags.clear()
+                list_notes.clear()
+                list_notes.addItems(filtred_notes)
+                btn_find_notes.setText("Сбросить поиск")
+            else:
+                error_win.setText('Заметки не ненайдены!!!')
+                error_win.exec_()
+
+        else:
+            error_win.setText('Не введено название тега!!!')
+            error_win.exec_()
+    else:
+        list_notes.clear()
+        field_text.clear()
+        list_tags.clear()
+        list_notes.addItems(notes)
+        btn_find_notes.setText("Искать заметки по тегу")
+
+
+
+
+list_notes.itemClicked.connect(show_note)
+btn_save_note.clicked.connect(save_note)
+btn_delete_note.clicked.connect(delet_note)
+btn_make_note.clicked.connect(make_note)
+btn_add_tag.clicked.connect(add_tag)
+btn_unpin_tag.clicked.connect(delet_tag)
+btn_find_notes.clicked.connect(find_notes)
+
+
+
+
+main_win.setLayout(layout_main)
+main_win.show()
+app.exec_()
